@@ -1,2 +1,2 @@
 # pymccanalysis
-Analysis of PTW mcc and xcc 
+Fieldand PDD analysis of PTW mcc and xcc files.
