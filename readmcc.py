@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 from base64 import b64decode
 from os import path
 import numpy as np
@@ -43,95 +44,99 @@ class ReadMCC:
                 normalisation_profile (Normalization): Pylinac Normalization object
 
         """
-        self.file = file
+        self.file_type = Path(file).suffix
+        if self.file_type == '.mcc' or self.file_type == '.xcc':
+            self.file = file
+        else:
+            raise IOError('File must be .mcc or .xcc')
 
         if 'depths' in kwargs:
-            depths = kwargs.pop('depths')
-            if depths == 'all':
-                depths = self.get_depths()
-
+            self.depths = kwargs.pop('depths')
+            if self.depths == 'all':
+                self.depths = self.get_depths()
         else:
-            depths = [100.00]
+            self.depths = [100.00]
         if 'ion_to_dose' in kwargs:
-            ion_to_dose = kwargs.pop('ion_to_dose')
+            self.ion_to_dose = kwargs.pop('ion_to_dose')
         else:
-            ion_to_dose = False
+            self.ion_to_dose = False
         if 'normalise_pdd' in kwargs:
-            normalise_pdd = kwargs.pop('normalise_pdd')
+            self.normalise_pdd = kwargs.pop('normalise_pdd')
         else:
-            normalise_pdd = True
+            self.normalise_pdd = True
         if 'normalise_profile' in kwargs:
-            normalise_profile = kwargs.pop('normalise_profile')
+            self.normalise_profile = kwargs.pop('normalise_profile')
         else:
-            normalise_profile = Normalization.BEAM_CENTER
+            self.normalise_profile = Normalization.BEAM_CENTER
         if 'array_profiles' in kwargs:
-            array_profiles = kwargs.pop('array_profiles')
+            self.array_profiles = kwargs.pop('array_profiles')
         else:
-            array_profiles = False
+            self.array_profiles = False
         if 'energy' in kwargs:
-            energy = kwargs.pop('energy')
+            self.energy = kwargs.pop('energy')
         else:
-            energy = None
+            self.energy = None
         if 'scale' in kwargs:
-            scale = kwargs.pop('scale')
+            self.scale = kwargs.pop('scale')
         else:
-            scale = 20
+            self.scale = 20
         if 'smoothing_factor' in kwargs:
-            smoothing_factor = kwargs.pop('smoothing_factor')
+            self.smoothing_factor = kwargs.pop('smoothing_factor')
         else:
-            smoothing_factor = None
+            self.smoothing_factor = None
 
-        meta_data = {}
-        clean = {}
-        data = []
-        file_type = path.splitext(file)[1][1:]
+        meta_data, clean = self.extract_data()
 
-        if file_type == 'mcc':
-            scans = self.get_scans(file)
-            scan_data = self.separate_data(scans)
-            clean = self.clean_data(scan_data)
-            # mid = int(len(meta_data) / 2)
-            meta_data = self.get_metadata(scans)
-
-            data = meta_data
-        elif file_type == 'xcc':
-            root = get_xcc_objects(file)
-            clean = self.get_xcc_data(root)
-            meta_data = self.get_xcc_meta_data(root)
+        data = meta_data
 
         _mcc_data = {}
-        if array_profiles:
-            if file_type == 'mcc':
-                detectors = DetectorArray(meta_data[0], clean, normalise_profile=normalise_profile, scale=scale,
-                                          smoothing_factor=smoothing_factor)
+        if self.array_profiles:
+            if self.file_type == 'mcc':
+                detectors = DetectorArray(meta_data[0], clean, normalise_profile=self.normalise_profile, scale=self.scale,
+                                          smoothing_factor=self.smoothing_factor)
             else:
-                detectors = DetectorArray(meta_data, clean, normalise_profile=normalise_profile, scale=scale,
-                                          smoothing_factor=smoothing_factor)
+                detectors = DetectorArray(meta_data, clean, normalise_profile=self.normalise_profile, scale=self.scale,
+                                          smoothing_factor=self.smoothing_factor)
             _mcc_data['INPLANE_PROFILE'] = detectors.inplane
             _mcc_data['CROSSPLANE_PROFILE'] = detectors.crossplane
             _mcc_data['PROFILE_GRID'] = detectors.grid
         else:
             for i in range(0, len(meta_data)):
                 dataset = pd.DataFrame({'Position': clean[i][:, 0], 'Values': clean[i][:, 1]})
-                if not array_profiles:
-                    dataset = self.up_sample(dataset, scale)
+                if not self.array_profiles:
+                    dataset = self.up_sample(dataset, self.scale)
                 data[i].append(dataset)
 
                 if data[i][0] == 'PDD':
-                    if energy:  # Added for electrons where all energies are in one file
-                        if data[i][1]['ENERGY'] == energy:
-                            _mcc_data[data[i][0]] = PDD(data[i], normalise_pdd, ion_to_dose).results
+                    if self.energy:  # Added for electrons where all energies are in one file
+                        if data[i][1]['ENERGY'] == self.energy:
+                            _mcc_data[data[i][0]] = PDD(data[i], self.normalise_pdd, self.ion_to_dose).results
                     else:
-                        _mcc_data[data[i][0]] = PDD(data[i], normalise_pdd, ion_to_dose).results
+                        _mcc_data[data[i][0]] = PDD(data[i], self.normalise_pdd, self.ion_to_dose).results
                 if data[i][0] == 'INPLANE_PROFILE':
-                    if data[i][1]['SCAN_DEPTH'] in depths:
-                        _mcc_data[data[i][0] + '_' + str(data[i][1]['SCAN_DEPTH'])] = XyProfile(data[i], normalise_profile).results
+                    if data[i][1]['SCAN_DEPTH'] in self.depths:
+                        _mcc_data[data[i][0] + '_' + str(round(data[i][1]['SCAN_DEPTH']))] = XyProfile(data[i], self.normalise_profile).results
                 if data[i][0] == 'CROSSPLANE_PROFILE':
-                    if data[i][1]['SCAN_DEPTH'] in depths:
-                        _mcc_data[data[i][0] + '_' + str(data[i][1]['SCAN_DEPTH'])] = XyProfile(data[i], normalise_profile).results
+                    if data[i][1]['SCAN_DEPTH'] in self.depths:
+                        _mcc_data[data[i][0] + '_' + str(round(data[i][1]['SCAN_DEPTH']))] = XyProfile(data[i], self.normalise_profile).results
         # Ensure order PDD, inplane and crossplane
         self.mcc_data = OrderedDict(sorted(_mcc_data.items(), reverse=True))
         pass
+
+    def extract_data(self):
+        if self.file_type == '.mcc':
+            scans = self.get_scans(self.file)
+            scan_data = self.separate_data(scans)
+            clean = self.clean_data(scan_data)
+            # mid = int(len(meta_data) / 2)
+            meta_data = self.get_metadata(scans)
+            return meta_data, clean
+
+        elif self.file_type == '.xcc':
+            root = get_xcc_objects(self.file)
+            clean = self.get_xcc_data(root)
+            meta_data = self.get_xcc_meta_data(root)
+            return meta_data, clean
 
     def get_depths(self):
         depths = []
@@ -194,16 +199,13 @@ class ReadMCC:
         """
         Extracts all the data between the BEGIN_SCAN and END_SCAN of each scan within the mcc file.
         Each scan is stored in a list.
-
         Parameters
         ----------
         dir_path : str
-            File name.
 
         Returns
         -------
-        scans : list
-            A list of each scan present in the PTW mmc file.
+        List
 
         """
         start_pattern = '^BEGIN_SCAN.*$'
@@ -227,24 +229,20 @@ class ReadMCC:
                         if not line.startswith('REF_SCAN_POSITIONS'):
                             scan.append(line)
 
-        scans = list(filter(None, scans))
-        return scans
+        return list(filter(None, scans))
 
     @staticmethod
     def separate_data(data: list) -> list:
         """
         Extracts all the position/output data between the BEGIN_DATA and END_DATA of each scan within the mcc file.
         Each scan is stored in a list.
-
         Parameters
         ----------
         data : list
-            A list of each scan present in the PTW mmc file.
 
         Returns
         -------
-        scans_data : list
-            A list of each scan's position and output data.
+        List
 
         """
         start_pattern = '^BEGIN_DATA.*$'
@@ -266,8 +264,7 @@ class ReadMCC:
                 elif match:
                     scan_data.append(line)
 
-        scans_data = list(filter(None, scans_data))
-        return scans_data
+        return list(filter(None, scans_data))
 
     @staticmethod
     def clean_data(data: list) -> list:

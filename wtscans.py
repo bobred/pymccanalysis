@@ -77,27 +77,27 @@ class WTScanPlotting:
             axis.set_title('PDD ' + str(data['PDD']['Energy']) + data['PDD']['Modality'])
 
     def profile_plot(self, data: dict, plane: str, axis: plt.Axes = None) -> None:
-        axis.plot(data[plane]['Profile_pos'], data[plane]['Profile_val'])
-        axis.scatter(data[plane]['CaxDev'], data[plane]['norm_value'], marker='x', color='red')
+        axis.plot(data['Profile_pos'], data['Profile_val'])
+        axis.scatter(data['CaxDev'], data['norm_value'], marker='x', color='red')
         axis.grid(True, which="both", ls="-")
-        axis.set_ylim(0, np.max(data[plane]['Profile_val']) * 1.10)
-        axis.set_title(plane.replace('_', ' ').title() + ' ' + str(data[plane]['Energy']) + data[plane]['Modality'])
+        axis.set_ylim(0, np.max(data['Profile_val']) * 1.10)
+        axis.set_title(plane.replace('_', ' ').title() + ' ' + str(data['Energy']) + data['Modality'])
         axis.set_xlabel('Distance (mm)')
         axis.set_ylabel('Response (arb.)')
 
-        self.plot_penumbra(penumbra=data[plane]['Penumbra'], axis=axis)
-        self.plot_symmetry(data[plane]['FWHM'], data[plane]['norm_value'], data[plane]['Filter'], axis=axis)
-        self.plot_fwhm(data[plane]['FWHM'], data[plane]['norm_value'], axis=axis)
+        self.plot_penumbra(penumbra=data['Penumbra'], axis=axis)
+        self.plot_symmetry(data['FWHM'], data['norm_value'], data['Filter'], axis=axis)
+        self.plot_fwhm(data['FWHM'], data['norm_value'], axis=axis)
 
-        if data[plane]['Filter'] == 'FF':
-            self.plot_flatness(profile=data[plane]['Profile_val'], axis=axis)
+        if data['Filter'] == 'FF':
+            self.plot_flatness(profile=data['Profile_val'], axis=axis)
         else:
-            if data[plane]['Nominal_field_size'] == 100:
-                plot_tangent(data[plane]['slopes']['Left 30%'], data[plane]['slopes']['Left 60%'], 20, 20, axis=axis)
-                plot_tangent(data[plane]['slopes']['Right 30%'], data[plane]['slopes']['Right 60%'], 20, 20, axis=axis)
+            if data['Nominal Field Size'] == 100:
+                plot_tangent(data['slopes']['Left 30%'], data['slopes']['Left 60%'], 20, 20, axis=axis)
+                plot_tangent(data['slopes']['Right 30%'], data['slopes']['Right 60%'], 20, 20, axis=axis)
             else:
-                plot_tangent(data[plane]['slopes']['Left 30%'], data[plane]['slopes']['Left 60%'], 75, 40, axis=axis)
-                plot_tangent(data[plane]['slopes']['Right 30%'], data[plane]['slopes']['Right 60%'], 40, 75, axis=axis)
+                plot_tangent(data['slopes']['Left 30%'], data['slopes']['Left 60%'], 75, 40, axis=axis)
+                plot_tangent(data['slopes']['Right 30%'], data['slopes']['Right 60%'], 40, 75, axis=axis)
             pass
 
     @staticmethod
@@ -495,7 +495,7 @@ class XyProfile:
             self.results["Penumbra"] = self.calc_penumbra()  # self.calc_penumbra_pylinac(),
             self.results["norm_value"] = self.norm_value
             self.results["slopes"] = slopes
-            self.results["Nominal_field_size"] = self.nominal_field_size
+            self.results["Nominal Field Size"] = self.nominal_field_size
             self.results["Profile_val"] = self.normalise()
             self.results["Varian Acceptance Data"] = self.calc_varian_acceptance_data()
             self.results["Inplane_offaxis"] = data[1]['SCAN_OFFAXIS_INPLANE']
@@ -767,12 +767,12 @@ class XyProfile:
     def calc_sym(self) -> float:
         """
         Calculates the symmetry of the field plane with the point difference
-        method using pylinacs single profile class.
+        method using pylinac single profile class.
 
         Returns
         -------
         symmetry : np.float64
-            Calculated symetrie value in %.
+            Calculated symmetry value in %.
 
         """
 
@@ -788,12 +788,12 @@ class XyProfile:
 
     def calc_fff_unflatness(self) -> np.float64:
         """
-        Calculate the FFF unflatness according to Fogliata
+        Calculate the FFF un-flatness according to Fogliata
 
         Returns
         -------
-        unflattness : np.float64
-            calculated unflatness value.
+        un-flatness : np.float64
+            calculated un-flatness value.
 
         """
 
