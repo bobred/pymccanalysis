@@ -22,7 +22,9 @@ classifiers = [
 
 dependencies = [
     # "requests>=2.32",
+    "bottleneck>=1.4.2",
     "matplotlib==3.10.9",
+    "numexpr>=2.10.2",
     "numpy<2",
     "pydicom>=2.4.5",
     "pylinac>=3.43.2",
