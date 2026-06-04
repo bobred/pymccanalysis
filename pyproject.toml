@@ -46,10 +46,13 @@ Repository = "https://https://github.com/bobred/pymccanalysis"
 [tool.setuptools]
 package-dir = { "" = "pymccanalysis" }
 
-[tool.setuptools.package-data]
-pymccanalysis = [
-    "examples/**/*",
-]
+[tool.hatch.build.targets.wheel]
+packages = ["pymccanalysis"]
+exclude = ['pymccanalysis/examples/**']
+
+[tool.hatch.build.targets.sdist]
+packages = ["pymccanalysis"]
+exclude = ['pymccanalysis/examples/**']
 
 [tool.setuptools.packages.find]
 where = ["pymccanalysis"]
