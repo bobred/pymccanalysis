@@ -4,8 +4,8 @@ __version__ = '1.0.0'
 __version_info__ = (1, 0, 0)
 
 # check python version
-if sys.version_info[0] < 3 or sys.version_info[1] >= 10:
-    raise ValueError("only supported is Python 3.10+. Please update your environment.")
+if sys.version_info[0] < 3 or sys.version_info[1] < 10:
+    raise ValueError("only supported Python 3.10+. Please update your environment.")
 
 
 from .wtscans import *
