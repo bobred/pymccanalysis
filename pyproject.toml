@@ -28,7 +28,8 @@ dependencies = [
     "pylinac>=3.43.2",
     "pymedphys>=0.41.0",
     "scikit-image==0.26.0",
-    "scipy==1.17.1"
+    "scipy==1.17.1",
+    "types-pytz>=2022.1.1"
 ]
 
 [project.optional-dependencies]
