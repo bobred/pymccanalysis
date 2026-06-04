@@ -3,9 +3,9 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "my-package"
+name = "pymccanalysis"
 version = "1.0.0"
-description = "A short description of the package"
+description = "Analysis of PTW Array and Water Tank data"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
