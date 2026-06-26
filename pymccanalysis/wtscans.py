@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from scipy.stats import linregress
+from scipy.interpolate import interp1d
 from pylinac import field_analysis
 from pylinac.core.profile import (
     SingleProfile,
@@ -30,7 +30,6 @@ def plot_tangent(a, b, forward, back, modality=None, axis=None):
     slope = (a[1] - b[1]) / (a[0] - b[0])
 
     x = np.linspace(a[0] - back, b[0] + forward, 100)
-
     y = slope * (x - a[0]) + a[1]
 
     axis.plot(x, y, 'C4--', linewidth=1)
@@ -55,87 +54,35 @@ class WTScanPlotting:
 
     @staticmethod
     def pdd_plot(data, axis=None):
-
         pdd = data['PDD']
 
         axis.plot(pdd['PDD_pos'], pdd['PDD_val'])
 
         if pdd['Modality'] == 'EL':
             for key in ('R100', 'R90', 'R80', 'R50', 'R30'):
-                axis.scatter(
-                    pdd[key],
-                    float(key[1:]),
-                    marker='x',
-                    color='red'
-                )
+                axis.scatter(pdd[key], float(key[1:]), marker='x', color='red')
+
+            plot_tangent([pdd['R60'], 60], [pdd['R40'], 40], 20, 100, 'EL', axis)
 
             plot_tangent(
-                [pdd['R60'], 60],
-                [pdd['R40'], 40],
-                20,
-                100,
-                'EL',
-                axis
-            )
-
-            plot_tangent(
-                [
-                    pdd['PDD_pos'][-100],
-                    pdd['PDD_val'][-100]
-                ],
-                [
-                    pdd['PDD_pos'][-10],
-                    pdd['PDD_val'][-10]
-                ],
-                10,
-                200,
-                'EL',
-                axis
-            )
+                [pdd['PDD_pos'][-100], pdd['PDD_val'][-100]],
+                [pdd['PDD_pos'][-10], pdd['PDD_val'][-10]], 10, 200, 'EL', axis)
 
             axis.vlines(
-                x=pdd['Rp'][0],
-                ymin=0,
-                ymax=20,
-                colors='C4',
-                linestyles='dashed',
-                linewidth=1
-            )
+                x=pdd['Rp'][0], ymin=0, ymax=20, colors='C4', linestyles='dashed', linewidth=1)
 
         else:
+            axis.scatter( pdd['R100'], 100, marker='x', color='red')
 
-            axis.scatter(
-                pdd['R100'],
-                100,
-                marker='x',
-                color='red'
-            )
+            axis.scatter(100, pdd['D100'], marker='x', color='red')
 
-            axis.scatter(
-                100,
-                pdd['D100'],
-                marker='x',
-                color='red'
-            )
+            axis.scatter(200, pdd['D200'], marker='x', color='red')
 
-            axis.scatter(
-                200,
-                pdd['D200'],
-                marker='x',
-                color='red'
-            )
-
-        axis.set_ylim(
-            0,
-            np.max(pdd['PDD_val']) * 1.1
-        )
+        axis.set_ylim(0, np.max(pdd['PDD_val']) * 1.1)
 
         axis.set_xlim(xmin=0)
 
-        WTScanPlotting.configure_axis(
-            axis,
-            f"PDD {pdd['Energy']}{pdd['Modality']}"
-        )
+        WTScanPlotting.configure_axis(axis, f"PDD {pdd['Energy']}{pdd['Modality']}")
 
     def profile_plot(self, data, plane, axis=None):
         axis.plot(data['Profile_pos'], data['Profile_val'])
@@ -166,32 +113,11 @@ class WTScanPlotting:
 
     @staticmethod
     def plot_flatness(profile, axis):
-
-        sp = SingleProfile(
-            profile,
-            None,
-            Interpolation.NONE,
-            False,
-            0.1,
-            10,
-            Normalization.BEAM_CENTER
-        )
-
+        sp = SingleProfile(profile, None, Interpolation.NONE, False, 0.1, 10, Normalization.BEAM_CENTER)
         data = sp.field_data(in_field_ratio=0.8)
 
-        axis.axhline(
-            np.max(data['field values']) * 100,
-            color='g',
-            linestyle='dashed',
-            linewidth=1
-        )
-
-        axis.axhline(
-            np.min(data['field values']) * 100,
-            color='g',
-            linestyle='dashed',
-            linewidth=1
-        )
+        axis.axhline(np.max(data['field values']) * 100, color='g', linestyle='dashed', linewidth=1)
+        axis.axhline(np.min(data['field values']) * 100, color='g', linestyle='dashed', linewidth=1)
 
     @staticmethod
     def plot_symmetry(fwhm, peak, filter_type, axis):
@@ -206,53 +132,19 @@ class WTScanPlotting:
 
     @staticmethod
     def plot_fwhm(fwhm, peak, axis):
-        axis.vlines(x=fwhm['left_index'],
-            ymin=0,
-            ymax=peak * 0.75,
-            colors='C4',
-            linestyles='dashed',
-            linewidth=1
-        )
+        axis.vlines(x=fwhm['left_index'], ymin=0, ymax=peak * 0.75, colors='C4', linestyles='dashed', linewidth=1)
 
-        axis.vlines(
-            x=fwhm['right_index'],
-            ymin=0,
-            ymax=peak * 0.75,
-            colors='C4',
-            linestyles='dashed',
-            linewidth=1
-        )
+        axis.vlines(x=fwhm['right_index'], ymin=0, ymax=peak * 0.75, colors='C4', linestyles='dashed', linewidth=1)
 
-        axis.hlines(
-            y=50,
-            xmin=fwhm['left_index'],
-            xmax=fwhm['right_index'],
-            colors='C4',
-            linestyles='dashed',
-            linewidth=1
-        )
+        axis.hlines(y=50, xmin=fwhm['left_index'], xmax=fwhm['right_index'], colors='C4', linestyles='dashed', linewidth=1)
 
     @staticmethod
-    def plot_penumbra(
-        penumbra,
-        axis=None
-    ):
-
+    def plot_penumbra(penumbra, axis=None):
         p = penumbra[2]
 
-        axis.axvspan(
-            p['left 20% index (exact)'],
-            p['left 80% index (exact)'],
-            alpha=0.5,
-            color='pink'
-        )
+        axis.axvspan(p['left 20% index (exact)'], p['left 80% index (exact)'], alpha=0.5, color='pink')
 
-        axis.axvspan(
-            p['right 20% index (exact)'],
-            p['right 80% index (exact)'],
-            alpha=0.5,
-            color='pink'
-        )
+        axis.axvspan(p['right 20% index (exact)'], p['right 80% index (exact)'], alpha=0.5, color='pink')
 
 
 # =============================================================================
@@ -261,13 +153,7 @@ class WTScanPlotting:
 
 class PDD:
 
-    def __init__(
-            self,
-            data,
-            normalise=False,
-            ion_to_dose=False
-    ):
-
+    def __init__(self, data, normalise=False, ion_to_dose=False):
         meta = data[1]
         dataset = data[2]
 
@@ -341,7 +227,6 @@ class PDD:
             })
 
         elif self.modality == 'EL':
-
             rp = self.calc_rp()
 
             self.results.update({
@@ -373,13 +258,11 @@ class PDD:
     # -------------------------------------------------------------------------
 
     def depth_max(self):
-
         return self.position[self.idx_max]
 
     # -------------------------------------------------------------------------
 
     def depth_x(self, x: float) -> float:
-
         target = self.max_dose * x * 0.01
 
         rev_values = self.meas_values[::-1]
@@ -401,85 +284,47 @@ class PDD:
     # -------------------------------------------------------------------------
 
     def dose_x(self, depth):
-
-        return np.interp(
-            depth,
-            self.position,
-            self.meas_values
-        )
+        return np.interp(depth, self.position, self.meas_values)
 
     # -------------------------------------------------------------------------
 
     def calc_surface_dose(self):
-
-        return (
-            self.meas_values[5] / self.max_dose
-        ) * 100
+        return (self.meas_values[5] / self.max_dose) * 100
 
     # -------------------------------------------------------------------------
 
     def calc_rp(self):
-
         a1x = self.depth_x(60)
         a2x = self.depth_x(40)
         a50x = self.depth_x(50)
 
-        slope_50 = (
-            (0.6 - 0.4) *
-            self.max_dose
-        ) / (
-            a1x - a2x
-        )
+        slope_50 = ((0.6 - 0.4) * self.max_dose) / (a1x - a2x)
 
-        inter_50 = (
-            0.5 * self.max_dose
-        ) - (
-            a50x * slope_50
-        )
+        inter_50 = (0.5 * self.max_dose) - (a50x * slope_50)
 
         e0_mean = self.calc_e0_mean()
 
-        rp_est = (
-            0.11 +
-            0.505 * e0_mean -
-            3e-4 * e0_mean ** 2
-        ) * 100
+        rp_est = (0.11 + 0.505 * e0_mean - 3e-4 * e0_mean ** 2) * 100
 
         lin_start = int(rp_est + 100)
 
         if lin_start < (self.position.size - 2):
-
-            slope_bs, inter_bs = np.polyfit(
-                self.position[lin_start:],
-                self.meas_values[lin_start:],
-                1
-            )
+            slope_bs, inter_bs = np.polyfit(self.position[lin_start:], self.meas_values[lin_start:], 1)
 
         else:
-
             inter_bs = self.meas_values[-1]
             slope_bs = 0.0
 
-        return (
-            inter_bs - inter_50
-        ) / (
-            slope_50 - slope_bs
-        )
+        return (inter_bs - inter_50) / (slope_50 - slope_bs)
 
     # -------------------------------------------------------------------------
 
     def calc_e0_mean(self):
-
-        return (
-            2.33 *
-            self.calc_r50d_ipem() /
-            10
-        )
+        return (2.33 * self.calc_r50d_ipem() / 10)
 
     # -------------------------------------------------------------------------
 
     def calc_r50d_ipem(self):
-
         d50ion = self.rev_values.max() / 2
 
         rev_vals = np.flip(self.rev_values)
@@ -497,19 +342,13 @@ class PDD:
 
 class XyProfile:
 
-    def __init__(
-        self,
-        data,
-        normalisation=Normalization.BEAM_CENTER
-    ):
-
+    def __init__(self, data, normalisation=Normalization.BEAM_CENTER):
         meta = data[1]
         dataset = data[2]
 
         self.results = {}
 
         self.meas_values = np.asarray(dataset['Values'])
-
         self.position = np.asarray(dataset['Position'])
 
         self.rev_values = self.meas_values[::-1]
@@ -519,7 +358,7 @@ class XyProfile:
         self.modality = meta['MODALITY']
         self.energy = meta['ENERGY']
 
-        self.filter = meta['FILTER']
+        self.filter_type = meta['FILTER']
 
         self.isocenter = meta['ISOCENTER']
         self.ssd = meta['SSD']
@@ -532,9 +371,9 @@ class XyProfile:
 
         self.offset = 0.0
 
-        if self.filter == "FFF" and self.energy == 6:
+        if self.filter_type == "FFF" and self.energy == 6:
             self.norm_value = self.calc_fff_renormalisation_6x() * 100
-        elif self.filter == "FFF" and self.energy == 10:
+        elif self.filter_type == "FFF" and self.energy == 10:
             self.norm_value = self.calc_fff_renormalisation_10x() * 100
         else:
             self.norm_value = 100
@@ -542,7 +381,7 @@ class XyProfile:
         self.max_value = np.max(self.meas_values)
 
         edge_method = (Edge.INFLECTION_DERIVATIVE
-            if self.filter == 'FFF'
+            if self.filter_type == 'FFF'
             else Edge.FWHM
         )
 
@@ -557,8 +396,7 @@ class XyProfile:
     # -------------------------------------------------------------------------
 
     def get_norm_factor(self):
-
-        if self.filter != 'FFF':
+        if self.filter_type != 'FFF':
             return 1.0
 
         if self.energy == 6:
@@ -569,49 +407,26 @@ class XyProfile:
     # -------------------------------------------------------------------------
 
     def normalise(self):
-
-        idx = np.searchsorted(
-            self.position,
-            0.0
-        )
-
+        idx = np.searchsorted(self.position, 0.0)
         cax = self.meas_values[idx]
 
-        if self.filter == 'FFF':
-            return (
-                self.meas_values *
-                self.norm_factor *
-                100
-            )
+        if self.filter_type == 'FFF':
+            return (self.meas_values * self.norm_factor * 100)
 
-        return (
-            self.meas_values /
-            cax
-        ) * 100
+        return (self.meas_values / cax) * 100
 
     # -------------------------------------------------------------------------
 
-    def calc_half_max(
-        self,
-        max_type='cax'
-    ):
-
+    def calc_half_max(self, max_type='cax'):
         if max_type == 'cax':
-
-            idx = np.searchsorted(
-                self.position,
-                self.offset
-            )
-
+            idx = np.searchsorted(self.position, self.offset)
             max_val = self.meas_values[idx]
-
         else:
-
             max_val = self.max_value
 
         half_max = 0.5 * max_val
 
-        if self.filter == 'FFF':
+        if self.filter_type == 'FFF':
             half_max /= self.norm_factor
 
         return half_max
@@ -619,7 +434,6 @@ class XyProfile:
     # -------------------------------------------------------------------------
 
     def calc_fwhm(self, max_type: str = 'cax') -> dict:
-
         half_max = self.calc_half_max(max_type)
 
         meas = self.meas_values
@@ -647,27 +461,10 @@ class XyProfile:
         fwhm_nominal = right_pos - left_pos
 
         iso_corr = self.isocenter / (self.ssd + self.scan_depth)
+        idx_80_left = np.searchsorted(pos, -0.4 * fwhm_nominal)
+        idx_80_right = np.searchsorted(pos, 0.4 * fwhm_nominal)
 
-        idx_80_left = np.searchsorted(
-            pos,
-            -0.4 * fwhm_nominal
-        )
-
-        idx_80_right = np.searchsorted(
-            pos,
-            0.4 * fwhm_nominal
-        )
-
-        profile = SingleProfile(
-            meas,
-            None,
-            Interpolation.NONE,
-            False,
-            0.1,
-            10,
-            self.normalisation
-        )
-
+        profile = SingleProfile(meas, None, Interpolation.NONE, False, 0.1, 10, self.normalisation)
         profile_values = profile.values * self.norm_value
 
         return {
@@ -688,49 +485,65 @@ class XyProfile:
     # -------------------------------------------------------------------------
 
     def calc_cax_deviation(self):
-
-        return (
-            self.field_width['left_index'] +
-            self.field_width['right_index']
-        ) * 0.5
+        return (self.field_width['left_index'] + self.field_width['right_index']) * 0.5
 
     # -------------------------------------------------------------------------
 
     def calc_varian_flat(self):
+        pmax = self.profile.field_calculation(0.8, 'max')
+        pmin = self.profile.field_calculation(0.8, 'min')
 
-        pmax = self.profile.field_calculation(
-            0.8,
-            'max'
-        )
-
-        pmin = self.profile.field_calculation(
-            0.8,
-            'min'
-        )
-
-        return (
-            (pmax - pmin) /
-            (pmax + pmin)
-        ) * 100
+        return ((pmax - pmin) / (pmax + pmin)) * 100
 
     # -------------------------------------------------------------------------
 
     def calc_sym(self):
-
-        symmetry = field_analysis.symmetry_point_difference(
-            self.profile,
-            0.8
-        )
-
+        symmetry = field_analysis.symmetry_point_difference(self.profile, 0.8, )
         return np.abs(symmetry)
 
     # -------------------------------------------------------------------------
 
-    def calc_penumbra(self):
+    def fff_symmetry(self):
+        # Sort data
+        order = np.argsort(self.position)
+        x = self.position[order]
+        dose = self.meas_values[order] * self.re_norm_percent
 
-        values = self.profile.values * (
-            self.norm_factor * 100
-        )
+        def interpolate_profile(_x, _dose):
+            # Interpolate
+            return interp1d(_x, _dose, kind='cubic')
+
+        f = interpolate_profile(x, dose)
+        # Normalise to CAX
+        D0 = float(f(0.0))
+        #dose = dose / D0 * 100
+        #
+        #f = interpolate_profile(x, dose)
+
+        peak = np.argmax(dose)
+
+        # 50% field edges
+        left = np.interp(50, dose[:peak], x[:peak])
+        right = np.interp(50, dose[peak:][::-1], x[peak:][::-1])
+
+        field_width = right - left
+
+        # Central 80%
+        limit = 0.4 * field_width
+
+        positions = np.arange(0.0, limit + 0.001, 0.5)
+
+        symmetry = np.array([
+            abs(float(f(p)) - float(f(-p)))
+            for p in positions
+        ])
+        fff = 100 * np.max(symmetry) / D0
+        return 100 * np.max(symmetry) / D0
+
+    # -------------------------------------------------------------------------
+
+    def calc_penumbra(self):
+        values = self.profile.values * (self.norm_factor * 100)
 
         mid = values.size // 2
 
@@ -743,21 +556,10 @@ class XyProfile:
         s = np.interp(20, left, left_pos)
         t = np.interp(80, left, left_pos)
 
-        u = np.interp(
-            80,
-            right[::-1],
-            right_pos[::-1]
-        )
+        u = np.interp(80, right[::-1], right_pos[::-1])
+        v = np.interp(20, right[::-1], right_pos[::-1])
 
-        v = np.interp(
-            20,
-            right[::-1],
-            right_pos[::-1]
-        )
-
-        return (
-            t - s,
-            v - u,
+        return (t - s, v - u,
             {
                 "left 20% index (exact)": s,
                 "left 80% index (exact)": t,
@@ -783,13 +585,9 @@ class XyProfile:
             Left/right slopes, peak position, and slope points.
         """
 
-        idx_center = np.searchsorted(
-            self.position,
-            0.0
-        )
+        idx_center = np.searchsorted(self.position, 0.0)
 
-        renorm = (
-            self.calc_fff_renormalisation_6x()
+        renorm = (self.calc_fff_renormalisation_6x()
             if self.energy == 6
             else self.calc_fff_renormalisation_10x()
         )
@@ -798,70 +596,31 @@ class XyProfile:
 
         width = self.field_width['fwhm (nominal)']
 
-        offset = (
-            self.calc_cax_deviation()
-            if center else 0.0
-        )
+        offset = (self.calc_cax_deviation() if center else 0.0)
 
         pos = self.position
         vals = self.meas_values
         scale = self.re_norm_percent
 
-        idx_a1 = np.searchsorted(
-            pos,
-            offset - width / 3
-        )
+        idx_a1 = np.searchsorted(pos, offset - width / 3)
+        idx_a2 = np.searchsorted(pos, offset - width / 6)
 
-        idx_a2 = np.searchsorted(
-            pos,
-            offset - width / 6
-        )
-
-        idx_b1 = np.searchsorted(
-            pos,
-            offset + width / 6
-        )
-
-        idx_b2 = np.searchsorted(
-            pos,
-            offset + width / 3
-        )
+        idx_b1 = np.searchsorted(pos, offset + width / 6)
+        idx_b2 = np.searchsorted(pos, offset + width / 3)
 
         a1 = (pos[idx_a1], vals[idx_a1] * scale)
+        a2 = (pos[idx_a2], vals[idx_a2] * scale)
 
-        a2 = (
-            pos[idx_a2],
-            vals[idx_a2] * scale
-        )
+        b1 = (pos[idx_b1], vals[idx_b1] * scale)
+        b2 = (pos[idx_b2], vals[idx_b2] * scale)
 
-        b1 = (
-            pos[idx_b1],
-            vals[idx_b1] * scale
-        )
-
-        b2 = (
-            pos[idx_b2],
-            vals[idx_b2] * scale
-        )
-
-        slope_left = (
-                (a1[1] - a2[1]) /
-                (a1[0] - a2[0])
-        )
-
-        slope_right = (
-                (b1[1] - b2[1]) /
-                (b1[0] - b2[0])
-        )
+        slope_left = ((a1[1] - a2[1]) / (a1[0] - a2[0]))
+        slope_right = ((b1[1] - b2[1]) / (b1[0] - b2[0]))
 
         i_left = a1[1] - (a1[0] * slope_left)
-
         i_right = b2[1] - (b2[0] * slope_right)
 
-        peak_pos = (
-                (i_left - i_right) /
-                (slope_right - slope_left)
-        )
+        peak_pos = ((i_left - i_right) / (slope_right - slope_left))
 
         return {
             "Slope Left": slope_left,
@@ -876,31 +635,16 @@ class XyProfile:
     # -------------------------------------------------------------------------
 
     def calc_fff_unflatness(self):
-
-        idx_center = np.searchsorted(
-            self.position,
-            0.0
-        )
+        idx_center = np.searchsorted(self.position, 0.0)
 
         width = self.field_width['fwhm (nominal)']
 
-        idx_left = np.searchsorted(
-            self.position,
-            -0.4 * width
-        )
+        idx_left = np.searchsorted(self.position, -0.4 * width)
+        idx_right = np.searchsorted(self.position, 0.4 * width)
 
-        idx_right = np.searchsorted(
-            self.position,
-            0.4 * width
-        )
+        vals = self.meas_values[[idx_left, idx_right]]
 
-        vals = self.meas_values[
-            [idx_left, idx_right]
-        ]
-
-        return np.max(
-            self.meas_values[idx_center] / vals
-        )
+        return np.max(self.meas_values[idx_center] / vals)
 
     # -------------------------------------------------------------------------
 
@@ -909,13 +653,13 @@ class XyProfile:
 
         cax = self.meas_values[idx]
 
-        if self.filter == 'FFF':
+        if self.filter_type == 'FFF':
             return (self.meas_values * self.norm_factor * 100)
 
         return (self.meas_values / cax) * 100
 
     def normalise(self, varian_acceptance: bool = False):
-        if self.filter == "FFF" and not varian_acceptance:
+        if self.filter_type == "FFF" and not varian_acceptance:
             return self.meas_values * self.re_norm_percent
         else:
             idx = np.searchsorted(self.position, 0.0)
@@ -925,19 +669,10 @@ class XyProfile:
     # -------------------------------------------------------------------------
 
     def calc_fff_renormalisation_10x(self):
-
         fs = self.nominal_field_size / 10
         depth = self.scan_depth / 10
 
-        val = (
-            84.4 +
-            (3.10 * fs) +
-            (1.37 * depth)
-        ) / (
-            1 -
-            (0.0063 * fs) +
-            (0.013 * depth)
-        )
+        val = (84.4 + (3.10 * fs) + (1.37 * depth)) / (1 - (0.0063 * fs) + (0.013 * depth))
 
         return val / 100
 
@@ -947,50 +682,69 @@ class XyProfile:
         fs = self.nominal_field_size / 10
         depth = self.scan_depth / 10
 
-        val = (
-            91.3 +
-            1.2 * fs +
-            0.138 * depth
-        ) / (
-            1 -
-            0.0075 * fs +
-            0.0014 * depth
-        )
+        val = (91.3 + (1.2 * fs) + (0.138 * depth)) / (1 - (0.0075 * fs) + (0.0014 * depth))
 
         return val / 100
 
     # -------------------------------------------------------------------------
 
-    def build_results(self):
+    def calc_varian_acceptance_data(self):
+        meas_values = self.normalise(varian_acceptance=True)
 
+        if self.nominal_field_size == 100.0:
+            point_a = 40
+            point_b = 20
+        else:
+            point_a = 180
+            point_b = 60
+
+        # find point positions (index) on left side
+        idx_a1 = np.searchsorted(self.position, -point_a)
+        idx_a2 = np.searchsorted(self.position, -point_b)
+
+        # find point positions (index) on right side
+        idx_b1 = np.searchsorted(self.position, point_b)
+        idx_b2 = np.searchsorted(self.position, point_a)
+
+        if self.nominal_field_size == 100.0:
+            return {'Left 4cm': meas_values[idx_a1], 'Left 2cm': meas_values[idx_a2],
+                    'Right 2cm': meas_values[idx_b1], 'Right 4cm': meas_values[idx_b2]}
+        else:
+            return {'Left 18cm': meas_values[idx_a1], 'Left 6cm': meas_values[idx_a2],
+                    'Right 6cm': meas_values[idx_b1], 'Right 18cm': meas_values[idx_b2]}
+
+    # -------------------------------------------------------------------------
+
+    def build_results(self):
         self.results.update({
             "Type": self.curve_type,
             "Modality": self.modality,
             "Energy": self.energy,
-            "Filter": self.filter,
+            "Filter": self.filter_type,
             "CaxDev": self.calc_cax_deviation(),
             "Scan depth": self.scan_depth,
             "FWHM": self.field_width,
-            "Symmetry": self.calc_sym(),
             "Penumbra": self.calc_penumbra(),
             "Profile_pos": self.position,
             "Nominal Field Size": self.nominal_field_size
         })
 
-        if self.filter == 'FF':
+        if self.filter_type == 'FF':
             self.results.update({
                 "Flatness": self.calc_varian_flat(),
                 "norm_value": 100,
+                "Symmetry": self.calc_sym(),
                 "Profile_val": self.normalise(),
             })
 
-        elif self.filter == 'FFF':
+        elif self.filter_type == 'FFF':
             slopes = self.calc_fff_slopes_peak()
             self.results.update({
                 "Unflatness": self.calc_fff_unflatness(),
+                "Symmetry": self.fff_symmetry(),
                 "norm_value": self.norm_factor * 100,
                 "slopes": slopes,
                 "Peak": slopes["Slope peak"],
-                "Profile_val": self.normalise()
+                "Profile_val": self.normalise(),
+                "Varian Acceptance Data": self.calc_varian_acceptance_data(),
             })
-            pass
